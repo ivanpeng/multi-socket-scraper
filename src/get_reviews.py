@@ -7,7 +7,69 @@ import html as h
 import zipfile
 
 from time import sleep
-import json
+import json 
+
+from ghost import Ghost
+import sys
+import logging
+from bs4 import BeautifulSoup
+logging.disable(logging.ERROR)
+from PyQt4.QtGui import *  
+from PyQt4.QtCore import *  
+from PyQt4.QtWebKit import *  
+
+class Render(QWebPage):  
+  def __init__(self, url):  
+    self.app = QApplication(sys.argv)  
+    QWebPage.__init__(self)  
+    self.loadFinished.connect(self._loadFinished)  
+    self.mainFrame().load(QUrl(url))  
+    self.app.exec_()  
+  
+  def _loadFinished(self, result):  
+    self.frame = self.mainFrame()  
+    self.app.quit()  
+  
+
+'''
+This function is built similarly to CanadianTireReviews class. We want to get the product info along with all its ratings
+On the MEC site, the data is all on one page. prodsPath and revsPath will be the same. 
+The output will be the same, a file of product reviews, for input into the socket runner.
+'''
+class MECReviews():
+    
+    def __init__(self, *args, **kwargs):
+        self.prodsPath = kwargs.get('prodsPath', '')
+        self.revsPath = kwargs.get('revsPath', '')
+        # We are really concerned with url for now. prodsPath and revsPath are going to be the same, and for text files.
+        self.prodLink = "http://www.mec.ca/product/5030-258/mec-kindle-top-womens"
+        #self.ghost = Ghost(wait_timeout=300, download_images=False)
+        #page, resources = self.ghost.open(self.prodLink, headers={'User-Agent': 'Mozilla/4.0'})
+        #self.html_text = page.content
+        r = Render(self.prodLink)
+        self.html_text = unicode(r.frame.toHtml())
+        self.soup = BeautifulSoup(self.html_text)
+        
+
+    def get_product_info(self):
+        # get product name, description, price, average rating
+        name = self.soup.find('title').text
+        print "Name: " + name
+        for div in self.soup.findAll('div', id ='longdesc'):
+            print "Description: "+ str(div)
+        return ""
+        #return desc
+        
+    def get_product_reviews(self):
+        # get all product reviews for a certain product
+        reviews1 = self.soup.find('div', id='BVRRSummaryContainer')
+        reviews2= self.soup.find('div', id='BVRRContainer')
+        print "Reviews 2: " + str(reviews2)
+        
+        #print reviews2.__dict__
+        #return "Reviews 1: " + str(reviews1) + "\n" + "Reviews 2: " + str(reviews2)
+    
+    
 
 class CanadianTireReviews():
 
@@ -243,3 +305,9 @@ class CanadianTireReviews():
                     #random delay
                     randNum = float(11 + randrange(0,200)/31)
                     sleep(randNum)
+
+if __name__ == '__main__':
+    m = MECReviews()
+    info = m.get_product_info()
+    reviews = m.get_product_reviews()
+    #print reviews
