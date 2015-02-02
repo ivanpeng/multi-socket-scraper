@@ -7,9 +7,8 @@ import html as h
 import zipfile
 
 from time import sleep
-import json 
 
-from ghost import Ghost
+import json 
 import sys
 import logging
 from bs4 import BeautifulSoup
@@ -52,23 +51,30 @@ class MECReviews():
         
 
     def get_product_info(self):
+        product_info = {}
         # get product name, description, price, average rating
         name = self.soup.find('title').text
         print "Name: " + name
-        for div in self.soup.findAll('div', id ='longdesc'):
-            print "Description: "+ str(div)
-        return ""
-        #return desc
+        desc = self.soup.find('div', id ='longdesc')
+        if desc is not None:
+            print "Description: " + desc.text
+            product_info['description'] = desc 
+        
+        product_info['name'] = name
+        # And so on, and so forth. Do so with price, average rating, categories, etc
+        return product_info
         
     def get_product_reviews(self):
         # get all product reviews for a certain product
-        reviews1 = self.soup.find('div', id='BVRRSummaryContainer')
-        reviews2= self.soup.find('div', id='BVRRContainer')
-        print "Reviews 2: " + str(reviews2)
-        
-        #print reviews2.__dict__
-        #return "Reviews 1: " + str(reviews1) + "\n" + "Reviews 2: " + str(reviews2)
+        reviews_str = self.soup.find('div', id='BVRRContainer')
+        print "Reviews String: " + str(reviews_str)
+        reviews_dict = {}
+        # This is where you parse the objects; I print the objects out right now, but you can write it out. 
+        return reviews_dict
     
+    def write_reviews(self):
+        # write to reviews file here. follow the format of Cdn Tire reviews.
+        pass
     
 
 class CanadianTireReviews():
@@ -308,6 +314,8 @@ class CanadianTireReviews():
 
 if __name__ == '__main__':
     m = MECReviews()
+    # Need to comment out these two.
     info = m.get_product_info()
     reviews = m.get_product_reviews()
-    #print reviews
+    # THis is the proper thing to call.
+    m.write_reviews()
