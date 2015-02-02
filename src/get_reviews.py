@@ -10,9 +10,7 @@ from time import sleep
 
 import json 
 import sys
-import logging
 from bs4 import BeautifulSoup
-logging.disable(logging.ERROR)
 from PyQt4.QtGui import *  
 from PyQt4.QtCore import *  
 from PyQt4.QtWebKit import *  
