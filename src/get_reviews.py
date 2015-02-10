@@ -3,6 +3,7 @@
 from __future__ import division
 from random import randrange
 
+import csv
 import html as h
 import zipfile
 
@@ -15,17 +16,16 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *  
 from PyQt4.QtWebKit import *  
 
-class Render(QWebPage):  
-  def __init__(self, url):  
-    self.app = QApplication(sys.argv)  
-    QWebPage.__init__(self)  
-    self.loadFinished.connect(self._loadFinished)  
-    self.mainFrame().load(QUrl(url))  
-    self.app.exec_()  
-  
-  def _loadFinished(self, result):  
-    self.frame = self.mainFrame()  
-    self.app.quit()  
+class Render(QWebPage):
+    def __init__(self, app, url):
+        self.app = app
+        QWebPage.__init__(self)  
+        self.loadFinished.connect(self._loadFinished)  
+        self.mainFrame().load(QUrl(url))  
+        self.app.exec_()
+    def _loadFinished(self, result):  
+        self.frame = self.mainFrame()
+        self.app.quit()
   
 
 '''
@@ -36,27 +36,34 @@ The output will be the same, a file of product reviews, for input into the socke
 class MECReviews():
     
     def __init__(self, *args, **kwargs):
-        self.prodsPath = kwargs.get('prodsPath', '')
-        self.revsPath = kwargs.get('revsPath', '')
+        #self.prodsPath = kwargs.get('prodsPath', '')
+        #self.revsPath = kwargs.get('revsPath', '')
         # We are really concerned with url for now. prodsPath and revsPath are going to be the same, and for text files.
-        self.prodLink = "http://www.mec.ca/product/5030-258/mec-kindle-top-womens"
+        self.prodLink = kwargs['prodLink']
+        randNum = float(1 + randrange(0,200)/31)
+        sleep(randNum)
+        #self.prodLink = "http://www.mec.ca/product/5032-024/mec-inner-cadence-jacket-womens/"
+        #http://www.mec.ca/product/5030-258/mec-kindle-top-womens"
         #self.ghost = Ghost(wait_timeout=300, download_images=False)
         #page, resources = self.ghost.open(self.prodLink, headers={'User-Agent': 'Mozilla/4.0'})
         #self.html_text = page.content
-        r = Render(self.prodLink)
+        r = Render(kwargs['app'], self.prodLink)
         self.html_text = unicode(r.frame.toHtml())
         self.soup = BeautifulSoup(self.html_text)
+        #print self.soup
         
 
     def get_product_info(self):
         product_info = {}
         # get product name, description, price, average rating
-        name = self.soup.find('title').text
-        print "Name: " + name
+        name = self.soup.find('title')
+        if name:
+            name = name.text
+        #print "Name: " + name
         desc = self.soup.find('div', id ='longdesc')
         if desc is not None:
-            print "Description: " + desc.text
-            product_info['description'] = desc 
+            #print "Description: " + desc.text
+            product_info['description'] = desc.text
         
         product_info['name'] = name
         # And so on, and so forth. Do so with price, average rating, categories, etc
@@ -64,14 +71,69 @@ class MECReviews():
         
     def get_product_reviews(self):
         # get all product reviews for a certain product
-        reviews_str = self.soup.find('div', id='BVRRContainer')
-        print "Reviews String: " + str(reviews_str)
-        reviews_dict = {}
+        #reviews_str = self.soup.find('div', id='BVRRContainer')
+        #print "Reviews String: " + str(reviews_str)
+        revs_list = []
+        rev_dict = {}
         # This is where you parse the objects; I print the objects out right now, but you can write it out. 
-        return reviews_dict
+        # go thru all of find_all and extend dict for every review
+        revs = self.soup.find_all('div', id='BVSubmissionPopupContainer')
+        for r in revs:
+            rev_dict['title'] = r.find('span', class_='BVRRValue BVRRReviewTitle').text
+            rev_dict['date'] = r.find('span', class_='BVRRValue BVRRReviewDate').find('meta').get('content')
+            rev_dict['text'] = r.find('span', class_= 'BVRRReviewText').text
+            rev_dict['oRating'] = float(r.find('div',class_='BVRRRating BVRRRatingNormal BVRRRatingOverall').find('span',itemprop='ratingValue').text)
+            #if oRating:
+            #     = oRating
+            eRating = r.find('div',class_='BVRRRating BVRRRatingNormal BVRRRatingEffectiveness')
+            if eRating:
+                rev_dict['eRating'] = float(eRating.find('span', class_='BVRRNumber BVRRRatingNumber').text)
+            vRating = r.find('div',class_='BVRRRating BVRRRatingNormal BVRRRatingValue')
+            if vRating:
+                rev_dict['vRating'] = float(vRating.find('span', class_='BVRRNumber BVRRRatingNumber').text)
+            age = r.find('span', class_='BVRRValue BVRRContextDataValue BVRRContextDataValueAge')
+            if age:
+                rev_dict['age'] = age.text
+            rev_dict['gender'] = r.find('span', class_='BVRRValue BVRRContextDataValue BVRRContextDataValueGender').text
+            rev_dict['gStyle'] = r.find('span', class_='BVRRValue BVRRContextDataValue BVRRContextDataValueGearStyle').text
+            rev_dict['member'] = r.find('div', class_= 'BVRRBadgeLabel BVRRReviewBadgeLabel BVRRMECMemberLabel')
+            pros = r.find('span', class_='BVRRValue BVRRReviewProTags')
+            if pros:
+                pros = pros.find_all('span', class_='BVRRTag')
+                pros_list = [p.text for p in pros]
+                rev_dict['pros'] = pros_list
+            cons = r.find('span', class_='BVRRValue BVRRReviewConTags')
+            if cons:
+                cons = cons.find_all('span', class_='BVRRTag')
+                cons_list = [c.text for c in cons]
+                rev_dict['cons'] = cons_list
+            revs_list.append(rev_dict)
+        
+        #print revs_list
+        return revs_list
     
-    def write_reviews(self):
+    def write_reviews(self, prodLink):
         # write to reviews file here. follow the format of Cdn Tire reviews.
+        soup = h.getSoup(prodLink)
+        #delay so don't get other soup right away
+        randNum = float(1 + randrange(0,150)/31)
+        sleep(randNum)
+        #list of dicts pertaining to each review (Page 1 only)
+        revInfo = self.get_product_reviews()
+
+        # Need to have unique name for file before we zip it.
+        #with open("C:\Users\Amanda\" + prodCode,'a') as f:    
+        #    soup = h.getSoup(prodLink)
+        #    #delay so don't get soup right away
+        #    randNum = float(1 + randrange(0,200)/31)
+        #    sleep(randNum)
+            
+
+        #   z = zipfile.ZipFile("MECReviewsParsed.zip", 'a')
+        #   z.write(f.name)
+        #   z.close()
+
+        #print prodLink
         pass
     
 
@@ -311,9 +373,32 @@ class CanadianTireReviews():
                     sleep(randNum)
 
 if __name__ == '__main__':
-    m = MECReviews()
+    # Initialize QApplication
+    app = QApplication(sys.argv)
+    #not using socks: just going through this file here, with some delays
+    #writer = csv.writer(open('dict.csv', 'wb'))
+    with open('MECDict.csv','wb') as c:
+        fieldnames = ['description','name','title','text','age','eRating','vRating','oRating','member','gender','date','gStyle','pros','cons']
+        w = csv.DictWriter(c,fieldnames=fieldnames)
+        w.writeheader()
+        
+        with open('mec_link_list.txt','r') as f:
+            items = [line.strip() for line in f]    #each line is a product url
+            for i in items[:2]:
+                print i
+                m = MECReviews(app=app, prodLink = i)
+                prodInfo = m.get_product_info()
+                print prodInfo
+                revInfo = m.get_product_reviews()
+                print revInfo
+                #reviewDict = prodInfo.update(revInfo)
+                for ri in revInfo: #for each dict in here
+                    revDict = dict(ri.items() + prodInfo.items()) #ri.update(prodInfo)
+                    print revDict.keys()
+                    w.writerow(revDict)
+
     # Need to comment out these two.
-    info = m.get_product_info()
-    reviews = m.get_product_reviews()
+    ##info = m.get_product_info()
+    ##reviews = m.get_product_reviews()
     # THis is the proper thing to call.
-    m.write_reviews()
+    ##m.write_reviews()

@@ -133,9 +133,46 @@ class CdnTireActions(DatabaseActions):
             self.generate_insert(join(directory,f))
         print "Inserted " + str(len(onlyfiles)) + " into the database."
 
-# Execute this now.
-CdnTireActions(DatabaseProperties()).insert_all("/home/ivan/temp")
-        
-        
-        
-    
+class MECActions:
+    '''
+    Need to run this so that a table is created
+    create table if not exists MecReviews (
+    productKey int not null auto_increment primary key,
+    name varchar(200),
+    description varchar(1000),
+    ....and so on
+    AMANDA YOU NEED TO FINISH THIS PART
+    );
+    '''
+    TABLE_NAME = "MecReviews"
+    INSERT_SQL_TEMPLATE = "insert into " + TABLE_NAME + " (%s) values (%s)"
+    TABLE_COLUMNS = ['cons', 'gStyle', 'description', 'title', 'text', 'age', 'eRating', 'vRating', 'name', 'member', 'gender', 'date', 'oRating']
+
+    def __init__(self, revList):
+        # The input is a list of dictionaries, from get_reviews
+        self.revList = revList
+
+    def generate_insert(self):
+        column_string = ",".join(self.TABLE_COLUMNS)
+        for rev in self.revList:
+            # iterate through the dictionary, making a string of column keys and values
+            value_string_arr = []
+            for column in self.TABLE_COLUMNS:
+                value_string_arr.append(rev[column])
+            value_string = ",".join(value_string_arr)
+            insertCommand = self.INSERT_SQL_TEMPLATE %(column_string, value_string)
+            print insertCommand
+            # Now write to DB; THIS WILL NOT WORK IF YOU DON'T HAVE THE TABLE CREATED IN MYSQL
+
+
+
+if __name__ == "__main__":
+    # Execute this now.
+    #CdnTireActions(DatabaseProperties()).insert_all("/home/ivan/temp")
+
+    #Run MEC write to DB
+    test_dict = {'description': 'hi','cons': 'a list of cons', 'gStyle': 'a gstyle', 'title': 'Hello World', 'age': '5',
+                 'text': 'Hello World', 'eRating': '5', 'vRating': '1', 'name': "Named item", 'gender': 'M', 'date': 'datestr',
+                 'oRating': '10', 'member': 'Member'}
+    mec = MECActions([test_dict])
+    mec.generate_insert()
